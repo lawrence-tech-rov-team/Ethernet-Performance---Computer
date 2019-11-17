@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Net;
@@ -17,18 +18,28 @@ namespace Ethernet_Performance___Computer {
 		private const int RECV_PORT = 6002;
 		private const string IP = "169.254.240.157"; //"255.255.255.255";
 
+		private Stopwatch pingTimer = new Stopwatch();
+
 		private UdpClient client;
 
 		public MainForm() {
 			InitializeComponent();
 		}
 
+		private void EnableStates(bool connected) {
+			DisconnectBtn.Enabled = connected;
+			SendBtn.Enabled = connected;
+			ConnectBtn.Enabled = !connected;
+			PingTestBtn.Enabled = connected;
+			LargePacketBtn.Enabled = connected;
+		}
+
 		private void ConnectBtn_Click(object sender, EventArgs e) {
-			DisconnectBtn.Enabled = SendBtn.Enabled = true;
-			ConnectBtn.Enabled = false;
+			EnableStates(true);
 
 			client = new UdpClient();
 			client.Client.Bind(new IPEndPoint(IPAddress.Any, RECV_PORT));
+			Console.WriteLine(client.Client.ReceiveBufferSize);
 
 			try {
 				client.BeginReceive(new AsyncCallback(OnDataReceived), null);
@@ -39,8 +50,8 @@ namespace Ethernet_Performance___Computer {
 		}
 
 		private void DisconnectBtn_Click(object sender, EventArgs e) {
-			ConnectBtn.Enabled = true;
-			DisconnectBtn.Enabled = SendBtn.Enabled = false;
+			EnableStates(false);
+			pingTimer.Stop();
 
 			client.Close();
 			client = null;
@@ -57,9 +68,44 @@ namespace Ethernet_Performance___Computer {
 		private void OnDataReceived(IAsyncResult res) {
 			IPEndPoint ip = new IPEndPoint(IPAddress.Any, RECV_PORT);
 			byte[] data = client.EndReceive(res, ref ip);
+			if (pingTimer.IsRunning) {
+				pingTimer.Stop();
+				AvgPingLabel.Invoke(new Action(() => {
+					AvgPingLabel.Text = "Ping time: " + pingTimer.Elapsed.TotalMilliseconds + " ms";
+				}));
+			}
 
-			Console.WriteLine(Encoding.UTF8.GetString(data));
+			if(data.Length > 20) {
+				Console.Write(Encoding.UTF8.GetString(data, 0, 20));
+				Console.Write("...");
+				Console.Write(Encoding.UTF8.GetString(data, Math.Max(20, data.Length - 5), Math.Max(0, Math.Min(5, data.Length - 20))));
+				Console.Write("  Size = ");
+				Console.WriteLine(data.Length);
+			} else {
+				Console.WriteLine(Encoding.UTF8.GetString(data));
+			}
+
 			client.BeginReceive(new AsyncCallback(OnDataReceived), null);
+		}
+
+		private void PingTestBtn_Click(object sender, EventArgs e) {
+			if (client != null) {
+				byte[] data = Encoding.UTF8.GetBytes("Ping!");
+				pingTimer.Restart();
+				client.Send(data, data.Length, IP, DEST_PORT);
+			}
+		}
+
+		private void LargePacketBtn_Click(object sender, EventArgs e) {
+			if (client != null) {
+				pingTimer.Restart();
+				byte[] data = new byte[400];
+				for(int i = 0; i < 400; i++) {
+					data[i] = (byte)('0' + (i % 10));
+				}
+				pingTimer.Restart();
+				client.Send(data, data.Length, IP, DEST_PORT);
+			}
 		}
 	}
 }
