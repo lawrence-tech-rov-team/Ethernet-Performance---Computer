@@ -32,6 +32,7 @@
 			this.AvgPingLabel = new System.Windows.Forms.Label();
 			this.LargePacketBtn = new System.Windows.Forms.Button();
 			this.timer1 = new System.Windows.Forms.Timer(this.components);
+			this.TestBtn = new System.Windows.Forms.Button();
 			this.SuspendLayout();
 			// 
 			// ConnectBtn
@@ -109,11 +110,23 @@
 			// 
 			this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
 			// 
+			// TestBtn
+			// 
+			this.TestBtn.Enabled = false;
+			this.TestBtn.Location = new System.Drawing.Point(59, 247);
+			this.TestBtn.Name = "TestBtn";
+			this.TestBtn.Size = new System.Drawing.Size(92, 30);
+			this.TestBtn.TabIndex = 7;
+			this.TestBtn.Text = "Test";
+			this.TestBtn.UseVisualStyleBackColor = true;
+			this.TestBtn.Click += new System.EventHandler(this.TestBtn_Click);
+			// 
 			// MainForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(800, 450);
+			this.Controls.Add(this.TestBtn);
 			this.Controls.Add(this.LargePacketBtn);
 			this.Controls.Add(this.AvgPingLabel);
 			this.Controls.Add(this.PingTestBtn);
@@ -139,6 +152,7 @@
 		private System.Windows.Forms.Label AvgPingLabel;
 		private System.Windows.Forms.Button LargePacketBtn;
 		private System.Windows.Forms.Timer timer1;
+		private System.Windows.Forms.Button TestBtn;
 	}
 }
 
