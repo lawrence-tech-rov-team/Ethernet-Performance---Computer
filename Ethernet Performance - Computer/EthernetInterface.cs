@@ -20,9 +20,52 @@ namespace Ethernet_Performance___Computer {
 
 		public delegate void NewPacketHandler(UdpPacket packet);
 		public event NewPacketHandler OnPacketReceived;
-		//TODO send/receive timeouts
+		
 		public EthernetInterface() {
 
+		}
+
+		private bool AutoConnect() {
+			int origSendTimeout = 5000;
+			int origRecvTimeout = 5000;
+
+			try {
+				origSendTimeout = client.Client.SendTimeout;
+				origRecvTimeout = client.Client.ReceiveTimeout;
+
+				client.Client.SendTimeout = 100;
+				client.Client.ReceiveTimeout = 100;
+			} catch(Exception ex) { }
+
+			IPEndPoint ip = new IPEndPoint(IPAddress.Any, ReceivePort);
+			byte[] pings = new byte[10];
+			random.NextBytes(pings);
+			int counts = 0;
+			for(int i = 0; i < 10; i++) {
+				try {
+					Console.Out.WriteLine("Attempt #{0}...", i);
+					UdpPacket packet = new UdpPacket(Command.Ping, pings[i]);
+					byte[] data = packet.AllBytes;
+					client.Send(data, data.Length, TargetIp, DestinationPort);
+					data = client.Receive(ref ip);
+					packet = UdpPacket.ParseData(data);
+					if((packet != null) && (packet.Command == Command.Ping) && (packet.Data.Length == 1) && (packet.Data[0] == pings[i])) {
+						counts++;
+					}
+				} catch (Exception ex) {
+					Console.Error.WriteLine("Error sending/receiving packet: {0}", ex.Message);
+					Console.Error.WriteLine(ex.StackTrace);
+				}
+			}
+
+			try {
+				client.Client.SendTimeout = origSendTimeout;
+				client.Client.ReceiveTimeout = origRecvTimeout;
+			} catch (Exception ex) { }
+
+			Console.WriteLine("Counts: {0}", counts);
+
+			return counts >= 3;
 		}
 
 		public bool TryConnect() {
@@ -34,6 +77,7 @@ namespace Ethernet_Performance___Computer {
 			try {
 				client = new UdpClient();
 				client.Client.Bind(new IPEndPoint(IPAddress.Any, ReceivePort));
+				AutoConnect();
 				//client.Connect(new IPEndPoint(IPAddress.Any, ReceivePort));
 				/*int origSend = client.Client.SendTimeout;
 				int origRecv = client.Client.ReceiveTimeout;
