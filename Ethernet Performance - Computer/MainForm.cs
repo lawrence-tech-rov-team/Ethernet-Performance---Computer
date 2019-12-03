@@ -15,18 +15,13 @@ using System.Windows.Forms;
 namespace Ethernet_Performance___Computer {
 	public partial class MainForm : Form {
 
-		private const int DEST_PORT = 6001;
-		private const int RECV_PORT = 6002;
-		private const string IP = "169.254.240.157"; //"255.255.255.255";
-
-		private Stopwatch pingTimer = new Stopwatch();
 		private Random rnd = new Random();
 
-		private UdpClient client;
-		private ConcurrentQueue<byte> recvData = new ConcurrentQueue<byte>();
+		private EthernetInterface ethernet = new EthernetInterface();
 
 		public MainForm() {
 			InitializeComponent();
+			ethernet.OnPacketReceived += RunCommand;
 		}
 
 		private void EnableStates(bool connected) {
@@ -39,59 +34,41 @@ namespace Ethernet_Performance___Computer {
 		}
 
 		private void ConnectBtn_Click(object sender, EventArgs e) {
-			EnableStates(true);
-
-			client = new UdpClient();
-			client.Client.Bind(new IPEndPoint(IPAddress.Any, RECV_PORT));
-			//Console.WriteLine(client.Client.ReceiveBufferSize);
-
-			try {
-				client.BeginReceive(new AsyncCallback(OnDataReceived), null);
-			}catch(Exception ex) {
-				MessageBox.Show(ex.ToString());
+			if (ethernet.TryConnect()) {
+				EnableStates(true);
+			} else {
+				EnableStates(false);
+				MessageBox.Show("Could not connect to device.", "Error Connecting", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
-			//client.Client.Bind(new IPEndPoint(IPAddress.Any, DEST_PORT));
 		}
 
 		private void DisconnectBtn_Click(object sender, EventArgs e) {
 			EnableStates(false);
-			pingTimer.Stop();
-
-			client.Close();
-			client = null;
+			ethernet.Disconnect();
 		}
 
 		private void SendBtn_Click(object sender, EventArgs e) {
-			if(client != null) {
-				byte[] data = Encoding.UTF8.GetBytes(MsgTextBox.Text);
-				client.Send(data, data.Length, IP, DEST_PORT);
+			if(!ethernet.Send(Command.Echo, MsgTextBox.Text, false)) {
+				MessageBox.Show("Error sending echo.", "Error Sending", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
 		}
 
 		private void printPingResults() {
-			AvgPingLabel.Text = "Ping time: " + pingTimer.Elapsed.TotalMilliseconds + " ms";
+		//	AvgPingLabel.Text = "Ping time: " + pingTimer.Elapsed.TotalMilliseconds + " ms";
 		}
 
-		private void OnDataReceived(IAsyncResult res) {
-			IPEndPoint ip = new IPEndPoint(IPAddress.Any, RECV_PORT);
-			byte[] data = client.EndReceive(res, ref ip);
-
-			foreach (byte b in data) recvData.Enqueue(b);
-			//recvData.Enqueue(Encoding.UTF8.GetString(data));
-
-			client.BeginReceive(new AsyncCallback(OnDataReceived), null);
-		}
 
 		private void PingTestBtn_Click(object sender, EventArgs e) {
-			if (client != null) {
+			/*if (client != null) {
 				byte[] data = Encoding.UTF8.GetBytes("Ping!");
 				pingTimer.Restart();
 				client.Send(data, data.Length, IP, DEST_PORT);
-			}
+			}*/
+			//TODO
 		}
 
 		private void LargePacketBtn_Click(object sender, EventArgs e) {
-			if (client != null) {
+			/*if (client != null) {
 				timer1.Stop();
 				{
 					readBuffer();
@@ -108,56 +85,35 @@ namespace Ethernet_Performance___Computer {
 					readBuffer();
 				}
 				timer1.Start();
-			}
-		}
-
-		private bool foundStart = false;
-
-		private void readBuffer() {
-			/*while (!recvData.IsEmpty) {
-				string data;
-				if (recvData.TryDequeue(out data)) {
-					if (data.Length > 20) {
-						Console.Write(data.Substring(0, 20));
-						Console.Write("...");
-						Console.Write(data.Substring(Math.Max(20, data.Length - 5), Math.Max(0, Math.Min(5, data.Length - 20))));
-						Console.Write("  Size = ");
-						Console.WriteLine(data.Length);
-					} else {
-						Console.WriteLine(data);
-					}
-				}
 			}*/
-			while (!recvData.IsEmpty) {
-				if (!foundStart) {
-					byte data;
-					while (!recvData.IsEmpty) {
-						if (recvData.TryDequeue(out data)) {
-							if (data == 0xFF) {
-								foundStart = true;
-								break;
-							}
-						}
-					}
-				}
+			//TODO
+		}
 
-				if (!recvData.IsEmpty) {
-					byte cmd;
-					while (!recvData.TryPeek(out cmd)) { }
+		private void MainForm_Load(object sender, EventArgs e) {
+			
+		}
 
-					switch (cmd) {
-						case 0x00:
-							CmdPing();
-							break;
-						default:
-							foundStart = false;
-							break;
-					}
-				}
+		private void TestBtn_Click(object sender, EventArgs e) {
+			byte num = (byte)(rnd.Next(0, 255) & 0xFF);
+			if(!ethernet.Send(Command.Ping, num)) {
+				MessageBox.Show("Error sending ping.", "Error Sending", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
 		}
 
-		private void CmdPing() {
+		private void RunCommand(UdpPacket packet) {
+			switch (packet.Command) {
+				case Command.Ping:
+					CmdPing(packet);
+					return;
+				case Command.Echo:
+					CmdEcho(packet);
+					return;
+				default: return;
+			}
+		}
+
+		private void CmdPing(UdpPacket packet) {
+			/*
 			if(recvData.Count >= 3) {
 				byte[] buffer = fillFromBuffer(3);
 				if ((buffer == null) || (buffer.Length != 3)) return;
@@ -167,40 +123,15 @@ namespace Ethernet_Performance___Computer {
 				if(checksum == buffer[2]) {
 					Console.WriteLine("Ping! {0}", buffer[1]);
 				}
+			}*/
+			if (packet.Data.Length == 1) {
+				Console.WriteLine("Ping! {0}", packet.Data[0]);
 			}
 		}
 
-		private byte[] fillFromBuffer(int count) {
-			byte[] buffer = new byte[count];
-			for(int i = 0; i < count; i++) {
-				byte data;
-				if (recvData.TryDequeue(out data)) {
-					buffer[i] = data;
-				} else return null;
-			}
-			return buffer;
+		private void CmdEcho(UdpPacket packet) {
+			Console.WriteLine("Ehco! {0}", Encoding.UTF8.GetString(packet.Data));
 		}
 
-		private void timer1_Tick(object sender, EventArgs e) {
-			readBuffer();
-		}
-
-		private void MainForm_Load(object sender, EventArgs e) {
-			timer1.Start();
-		}
-
-		private void TestBtn_Click(object sender, EventArgs e) {
-			try {
-				if (client != null) {
-					byte num = (byte)(rnd.Next(0, 254) & 0xFF);
-					byte checksum = (byte)((0xFF + num) & 0x7F);
-					byte[] data = new byte[] { 0xFF, 0x00, num, checksum };//Encoding.UTF8.GetBytes("Ping!");
-					Console.WriteLine("Send Ping: {0}", num);
-					client.Send(data, data.Length, IP, DEST_PORT);
-				}
-			} catch(Exception ex) {
-				Console.WriteLine("Failed send: " + ex.Message);
-			}
-		}
 	}
 }

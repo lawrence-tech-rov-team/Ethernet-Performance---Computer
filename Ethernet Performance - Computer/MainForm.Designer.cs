@@ -23,7 +23,6 @@
 		/// the contents of this method with the code editor.
 		/// </summary>
 		private void InitializeComponent() {
-			this.components = new System.ComponentModel.Container();
 			this.ConnectBtn = new System.Windows.Forms.Button();
 			this.DisconnectBtn = new System.Windows.Forms.Button();
 			this.MsgTextBox = new System.Windows.Forms.TextBox();
@@ -31,7 +30,6 @@
 			this.PingTestBtn = new System.Windows.Forms.Button();
 			this.AvgPingLabel = new System.Windows.Forms.Label();
 			this.LargePacketBtn = new System.Windows.Forms.Button();
-			this.timer1 = new System.Windows.Forms.Timer(this.components);
 			this.TestBtn = new System.Windows.Forms.Button();
 			this.SuspendLayout();
 			// 
@@ -106,10 +104,6 @@
 			this.LargePacketBtn.UseVisualStyleBackColor = true;
 			this.LargePacketBtn.Click += new System.EventHandler(this.LargePacketBtn_Click);
 			// 
-			// timer1
-			// 
-			this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
-			// 
 			// TestBtn
 			// 
 			this.TestBtn.Enabled = false;
@@ -151,7 +145,6 @@
 		private System.Windows.Forms.Button PingTestBtn;
 		private System.Windows.Forms.Label AvgPingLabel;
 		private System.Windows.Forms.Button LargePacketBtn;
-		private System.Windows.Forms.Timer timer1;
 		private System.Windows.Forms.Button TestBtn;
 	}
 }
